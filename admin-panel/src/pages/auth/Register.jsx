@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { registerUser } from "../../services/auth.api";
 
@@ -17,8 +18,6 @@ function Register() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,12 +31,9 @@ function Register() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    setError("");
-    setSuccess("");
-
     // Check Password
     if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+      toast.error("Passwords do not match");
       return;
     }
 
@@ -50,7 +46,7 @@ function Register() {
         password: formData.password,
       });
 
-      setSuccess(response.message || "Account created successfully");
+      toast.success(response.message || "Account created successfully");
 
       setFormData({
         name: "",
@@ -65,7 +61,10 @@ function Register() {
     } catch (error) {
       console.error("Registration failed:", error);
 
-      setError(error.message || "Registration failed. Please try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Registration failed. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -76,21 +75,11 @@ function Register() {
       <div className="auth-card">
         <div className="auth-header">
           <h1>Create Account</h1>
-
           <p>Create your admin account</p>
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          {/* Error */}
-
-          {error && <div className="form-error">{error}</div>}
-
-          {/* Success */}
-
-          {success && <div className="form-success">{success}</div>}
-
           {/* Name */}
-
           <div className="form-group">
             <label htmlFor="name">Full Name</label>
 
@@ -106,7 +95,6 @@ function Register() {
           </div>
 
           {/* Email */}
-
           <div className="form-group">
             <label htmlFor="register-email">Email Address</label>
 
@@ -122,7 +110,6 @@ function Register() {
           </div>
 
           {/* Password */}
-
           <div className="form-group">
             <label htmlFor="register-password">Password</label>
 
@@ -141,7 +128,9 @@ function Register() {
                 type="button"
                 className="password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
               >
                 {showPassword ? "◉" : "◌"}
               </button>
@@ -149,7 +138,6 @@ function Register() {
           </div>
 
           {/* Confirm Password */}
-
           <div className="form-group">
             <label htmlFor="confirm-password">Confirm Password</label>
 
@@ -167,7 +155,9 @@ function Register() {
               <button
                 type="button"
                 className="password-toggle"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                onClick={() =>
+                  setShowConfirmPassword(!showConfirmPassword)
+                }
                 aria-label={
                   showConfirmPassword ? "Hide password" : "Show password"
                 }
@@ -178,15 +168,19 @@ function Register() {
           </div>
 
           {/* Submit */}
-
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button
+            type="submit"
+            className="auth-button"
+            disabled={loading}
+          >
             {loading ? "Creating Account..." : "Create Account"}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Already have an account? <Link to="/login">Login</Link>
+            Already have an account?{" "}
+            <Link to="/login">Login</Link>
           </p>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 import { loginUser } from "../../services/auth.api";
 
@@ -14,7 +15,6 @@ function Login() {
   });
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -30,7 +30,6 @@ function Login() {
 
     try {
       setLoading(true);
-      setError("");
 
       const response = await loginUser({
         email: formData.email,
@@ -43,11 +42,16 @@ function Login() {
 
       localStorage.setItem("user", JSON.stringify(user));
 
+      toast.success("Login successful!");
+
       navigate("/dashboard");
     } catch (error) {
       console.error("Login failed:", error);
 
-      setError(error.message || "Login failed. Please try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Invalid email or password"
+      );
     } finally {
       setLoading(false);
     }
@@ -62,8 +66,6 @@ function Login() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          {error && <div className="form-error">{error}</div>}
-
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
 
@@ -96,7 +98,9 @@ function Login() {
                 type="button"
                 className="password-toggle"
                 onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-label={
+                  showPassword ? "Hide password" : "Show password"
+                }
               >
                 {showPassword ? "◉" : "◌"}
               </button>
@@ -110,17 +114,24 @@ function Login() {
               <span>Remember me</span>
             </label>
 
-            <Link to="/forgot-password">Forgot Password?</Link>
+            <Link to="/forgot-password">
+              Forgot Password?
+            </Link>
           </div>
 
-          <button type="submit" className="auth-button" disabled={loading}>
+          <button
+            type="submit"
+            className="auth-button"
+            disabled={loading}
+          >
             {loading ? "Logging in..." : "Login"}
           </button>
         </form>
 
         <div className="auth-footer">
           <p>
-            Don't have an account? <Link to="/register">Create Account</Link>
+            Don't have an account?{" "}
+            <Link to="/register">Create Account</Link>
           </p>
         </div>
       </div>

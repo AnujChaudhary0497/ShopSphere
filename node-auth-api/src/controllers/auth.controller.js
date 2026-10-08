@@ -274,14 +274,11 @@ const forgotPasswordRequest = async (req, res) => {
 
     res.status(200).json({
       success: true,
-
-      message:
-        "If an account with this email exists, a password reset link has been sent.",
+      message: "Password reset link sent successfully.",
     });
   } catch (error) {
     res.status(400).json({
       success: false,
-
       message: error.message,
     });
   }

@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { Eye, Pencil, Power, Trash2, MoreVertical, X } from "lucide-react";
+import {
+  Eye,
+  Pencil,
+  Power,
+  Trash2,
+  MoreVertical,
+  X,
+} from "lucide-react";
 
 import {
   getUsers,
@@ -63,11 +70,34 @@ function Users() {
   }, []);
 
   // =========================
+  // Close Action Menu Outside
+  // =========================
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest(".user-actions-dropdown")) {
+        setOpenActionMenu(null);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
+
+  // =========================
   // Action Menu
   // =========================
 
   const handleActionMenu = (userId) => {
-    setOpenActionMenu((prev) => (prev === userId ? null : userId));
+    setOpenActionMenu((prev) =>
+      prev === userId ? null : userId
+    );
   };
 
   // =========================
@@ -101,11 +131,8 @@ function Users() {
 
     setFormData({
       name: user.name || "",
-
       email: user.email || "",
-
       role: user.role || "user",
-
       isActive: user.isActive ?? true,
     });
 
@@ -121,7 +148,6 @@ function Users() {
 
     setFormData((prev) => ({
       ...prev,
-
       [name]: type === "checkbox" ? checked : value,
     }));
   };
@@ -166,7 +192,7 @@ function Users() {
     const action = user.isActive ? "deactivate" : "activate";
 
     const confirmed = window.confirm(
-      `Are you sure you want to ${action} ${user.name}?`,
+      `Are you sure you want to ${action} ${user.name}?`
     );
 
     if (!confirmed) {
@@ -194,7 +220,7 @@ function Users() {
 
   const handleDeleteUser = async (user) => {
     const confirmed = window.confirm(
-      `Are you sure you want to permanently delete ${user.name}?`,
+      `Are you sure you want to permanently delete ${user.name}?`
     );
 
     if (!confirmed) {
@@ -298,16 +324,22 @@ function Users() {
                     <td>{user.email}</td>
 
                     <td>
-                      <span className="role-badge">{user.role}</span>
+                      <span className="role-badge">
+                        {user.role}
+                      </span>
                     </td>
 
                     <td>
                       <span
                         className={
-                          user.isActive ? "status-active" : "status-inactive"
+                          user.isActive
+                            ? "status-active"
+                            : "status-inactive"
                         }
                       >
-                        {user.isActive ? "Active" : "Inactive"}
+                        {user.isActive
+                          ? "Active"
+                          : "Inactive"}
                       </span>
                     </td>
 
@@ -323,7 +355,9 @@ function Users() {
                           type="button"
                           className="user-action-menu-button"
                           title="Actions"
-                          onClick={() => handleActionMenu(user.id)}
+                          onClick={() =>
+                            handleActionMenu(user.id)
+                          }
                           disabled={actionLoading}
                         >
                           <MoreVertical size={18} />
@@ -418,8 +452,14 @@ function Users() {
       ========================= */}
 
       {viewModalOpen && viewUser && (
-        <div className="user-modal-overlay" onClick={closeViewModal}>
-          <div className="user-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="user-modal-overlay"
+          onClick={closeViewModal}
+        >
+          <div
+            className="user-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="user-modal-header">
               <h3>User Details</h3>
 
@@ -460,7 +500,11 @@ function Users() {
               <div className="user-detail-row">
                 <span>Status</span>
 
-                <strong>{viewUser.isActive ? "Active" : "Inactive"}</strong>
+                <strong>
+                  {viewUser.isActive
+                    ? "Active"
+                    : "Inactive"}
+                </strong>
               </div>
 
               {viewUser.created_at && (
@@ -468,7 +512,9 @@ function Users() {
                   <span>Created</span>
 
                   <strong>
-                    {new Date(viewUser.created_at).toLocaleString("en-IN")}
+                    {new Date(
+                      viewUser.created_at
+                    ).toLocaleString("en-IN")}
                   </strong>
                 </div>
               )}
@@ -482,8 +528,14 @@ function Users() {
       ========================= */}
 
       {editModalOpen && selectedUser && (
-        <div className="user-modal-overlay" onClick={closeEditModal}>
-          <div className="user-modal" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="user-modal-overlay"
+          onClick={closeEditModal}
+        >
+          <div
+            className="user-modal"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="user-modal-header">
               <h3>Edit User</h3>
 
@@ -496,7 +548,10 @@ function Users() {
               </button>
             </div>
 
-            <form onSubmit={handleUpdateUser} className="user-edit-form">
+            <form
+              onSubmit={handleUpdateUser}
+              className="user-edit-form"
+            >
               <div className="form-group">
                 <label>Name</label>
 
@@ -561,7 +616,9 @@ function Users() {
                   className="modal-save-button"
                   disabled={actionLoading}
                 >
-                  {actionLoading ? "Saving..." : "Save Changes"}
+                  {actionLoading
+                    ? "Saving..."
+                    : "Save Changes"}
                 </button>
               </div>
             </form>

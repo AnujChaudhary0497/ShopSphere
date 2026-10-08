@@ -1,452 +1,210 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import toast from "react-hot-toast";
 
-import {
-    Link,
-    useNavigate,
-    useSearchParams
-} from "react-router-dom";
-
-import {
-    resetPassword,
-    validateResetToken
-} from "../../services/auth.api";
-
+import { resetPassword, validateResetToken } from "../../services/auth.api";
 
 function ResetPassword() {
+  const navigate = useNavigate();
 
-    const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-    const [searchParams] =
-        useSearchParams();
+  const token = searchParams.get("token");
 
-    const token =
-        searchParams.get("token");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
+  const [loading, setLoading] = useState(false);
+  const [validatingToken, setValidatingToken] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
 
-    const [newPassword, setNewPassword] =
-        useState("");
+  // =========================
+  // Validate Token On Page Load
+  // =========================
 
-    const [confirmPassword, setConfirmPassword] =
-        useState("");
+  useEffect(() => {
+    const checkResetToken = async () => {
+      setTokenValid(false);
 
-    const [loading, setLoading] =
-        useState(false);
+      // No token in URL
+      if (!token) {
+        toast.error("Invalid or missing password reset link.");
+        setValidatingToken(false);
+        return;
+      }
 
-    const [validatingToken, setValidatingToken] =
-        useState(true);
+      try {
+        setValidatingToken(true);
 
-    const [tokenValid, setTokenValid] =
-        useState(false);
+        await validateResetToken(token);
 
-    const [error, setError] =
-        useState("");
+        // Token is valid
+        setTokenValid(true);
+      } catch (error) {
+        console.error("Reset token validation failed:", error);
 
-    const [success, setSuccess] =
-        useState("");
+        setTokenValid(false);
 
-
-    // =========================
-    // Validate Token On Page Load
-    // =========================
-
-    useEffect(() => {
-
-        const checkResetToken = async () => {
-
-            setError("");
-
-            setTokenValid(false);
-
-
-            // No token in URL
-
-            if (!token) {
-
-                setError(
-                    "Invalid or missing password reset link."
-                );
-
-                setValidatingToken(false);
-
-                return;
-            }
-
-
-            try {
-
-                setValidatingToken(true);
-
-
-                await validateResetToken(
-                    token
-                );
-
-
-                // Token is valid
-
-                setTokenValid(true);
-
-            } catch (error) {
-
-                console.error(
-                    "Reset token validation failed:",
-                    error
-                );
-
-
-                setTokenValid(false);
-
-
-                setError(
-                    error.response?.data?.message ||
-                    "This reset link is invalid or has already been used."
-                );
-
-            } finally {
-
-                setValidatingToken(false);
-
-            }
-
-        };
-
-
-        checkResetToken();
-
-    }, [token]);
-
-
-    // =========================
-    // Reset Password
-    // =========================
-
-    const handleSubmit = async (e) => {
-
-        e.preventDefault();
-
-        setError("");
-
-        setSuccess("");
-
-
-        // Token check
-
-        if (!token) {
-
-            setError(
-                "Invalid or missing password reset link."
-            );
-
-            return;
-        }
-
-
-        // Token validity check
-
-        if (!tokenValid) {
-
-            setError(
-                "This reset link is invalid or has already been used."
-            );
-
-            return;
-        }
-
-
-        // Password required
-
-        if (
-            !newPassword ||
-            !confirmPassword
-        ) {
-
-            setError(
-                "Please enter and confirm your new password."
-            );
-
-            return;
-        }
-
-
-        // Password length
-
-        if (newPassword.length < 8) {
-
-            setError(
-                "New password must be at least 8 characters."
-            );
-
-            return;
-        }
-
-
-        // Password match
-
-        if (
-            newPassword !==
-            confirmPassword
-        ) {
-
-            setError(
-                "New password and confirm password do not match."
-            );
-
-            return;
-        }
-
-
-        try {
-
-            setLoading(true);
-
-
-            const response =
-                await resetPassword({
-
-                    token,
-
-                    newPassword
-
-                });
-
-
-            setSuccess(
-                response.message ||
-                "Password reset successfully."
-            );
-
-
-            setNewPassword("");
-
-            setConfirmPassword("");
-
-
-            // Token has now been used
-
-            setTokenValid(false);
-
-
-            // Redirect to login
-
-            setTimeout(() => {
-
-                navigate("/login");
-
-            }, 2000);
-
-
-        } catch (error) {
-
-            console.error(
-                "Reset password failed:",
-                error
-            );
-
-
-            setError(
-                error.response?.data?.message ||
-                "Failed to reset password."
-            );
-
-
-            setNewPassword("");
-
-            setConfirmPassword("");
-
-        } finally {
-
-            setLoading(false);
-
-        }
-
+        toast.error(
+          error.response?.data?.message ||
+            "This reset link is invalid or has already been used.",
+        );
+      } finally {
+        setValidatingToken(false);
+      }
     };
 
+    checkResetToken();
+  }, [token]);
 
-    // =========================
-    // Token Checking Screen
-    // =========================
+  // =========================
+  // Reset Password
+  // =========================
 
-    if (validatingToken) {
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-        return (
-
-            <div className="auth-page">
-
-                <div className="auth-card">
-
-                    <div className="auth-header">
-
-                        <h1>
-                            Reset Password
-                        </h1>
-
-                        <p>
-                            Checking your reset link...
-                        </p>
-
-                    </div>
-
-                </div>
-
-            </div>
-
-        );
-
+    // Token check
+    if (!token) {
+      toast.error("Invalid or missing password reset link.");
+      return;
     }
 
+    // Token validity check
+    if (!tokenValid) {
+      toast.error("This reset link is invalid or has already been used.");
+      return;
+    }
 
-    // =========================
-    // Main UI
-    // =========================
+    // Password required
+    if (!newPassword || !confirmPassword) {
+      toast.error("Please enter and confirm your new password.");
+      return;
+    }
 
+    // Password length
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+
+    // Password match
+    if (newPassword !== confirmPassword) {
+      toast.error("New password and confirm password do not match.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await resetPassword({
+        token,
+        newPassword,
+      });
+
+      toast.success(response.message || "Password reset successfully.");
+
+      setNewPassword("");
+      setConfirmPassword("");
+
+      // Token has now been used
+      setTokenValid(false);
+
+      // Redirect to login
+      setTimeout(() => {
+        navigate("/login");
+      }, 2000);
+    } catch (error) {
+      console.error("Reset password failed:", error);
+
+      toast.error(error.response?.data?.message || "Failed to reset password.");
+
+      setNewPassword("");
+      setConfirmPassword("");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================
+  // Token Checking Screen
+  // =========================
+
+  if (validatingToken) {
     return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h1>Reset Password</h1>
 
-        <div className="auth-page">
+            <p>Checking your reset link...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-            <div className="auth-card">
+  // =========================
+  // Main UI
+  // =========================
 
-                <div className="auth-header">
+  return (
+    <div className="auth-page">
+      <div className="auth-card">
+        <div className="auth-header">
+          <h1>Reset Password</h1>
 
-                    <h1>
-                        Reset Password
-                    </h1>
-
-                    <p>
-
-                        {tokenValid
-                            ? "Enter your new password below."
-                            : "Password reset link is no longer valid."
-                        }
-
-                    </p>
-
-                </div>
-
-
-                {/* Success Message */}
-
-                {success && (
-
-                    <div className="form-success">
-
-                        {success}
-
-                    </div>
-
-                )}
-
-
-                {/* Error Message */}
-
-                {error && (
-
-                    <div className="form-error">
-
-                        {error}
-
-                    </div>
-
-                )}
-
-
-                {/* Reset Form */}
-
-                {!success &&
-                    tokenValid && (
-
-                    <form
-                        onSubmit={
-                            handleSubmit
-                        }
-                    >
-
-                        <div className="form-group">
-
-                            <label
-                                htmlFor="newPassword"
-                            >
-                                New Password
-                            </label>
-
-                            <input
-                                id="newPassword"
-                                type="password"
-                                value={newPassword}
-                                onChange={(e) =>
-                                    setNewPassword(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Enter new password"
-                                required
-                                disabled={loading}
-                            />
-
-                        </div>
-
-
-                        <div className="form-group">
-
-                            <label
-                                htmlFor="confirmPassword"
-                            >
-                                Confirm New Password
-                            </label>
-
-                            <input
-                                id="confirmPassword"
-                                type="password"
-                                value={
-                                    confirmPassword
-                                }
-                                onChange={(e) =>
-                                    setConfirmPassword(
-                                        e.target.value
-                                    )
-                                }
-                                placeholder="Confirm new password"
-                                required
-                                disabled={loading}
-                            />
-
-                        </div>
-
-
-                        <button
-                            type="submit"
-                            className="auth-button"
-                            disabled={loading}
-                        >
-
-                            {loading
-                                ? "Resetting Password..."
-                                : "Reset Password"
-                            }
-
-                        </button>
-
-                    </form>
-
-                )}
-
-
-                {/* Back To Login */}
-
-                <div className="auth-footer">
-
-                    <Link to="/login">
-                        Back to Login
-                    </Link>
-
-                </div>
-
-            </div>
-
+          <p>
+            {tokenValid
+              ? "Enter your new password below."
+              : "Password reset link is no longer valid."}
+          </p>
         </div>
 
-    );
+        {/* Reset Form */}
+        {tokenValid && (
+          <form onSubmit={handleSubmit}>
+            <div className="form-group">
+              <label htmlFor="newPassword">New Password</label>
 
+              <input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm New Password</label>
+
+              <input
+                id="confirmPassword"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirm new password"
+                required
+                disabled={loading}
+              />
+            </div>
+
+            <button type="submit" className="auth-button" disabled={loading}>
+              {loading ? "Resetting Password..." : "Reset Password"}
+            </button>
+          </form>
+        )}
+
+        {/* Back To Login */}
+        <div className="auth-footer">
+          <Link to="/login">Back to Login</Link>
+        </div>
+      </div>
+    </div>
+  );
 }
-
 
 export default ResetPassword;
