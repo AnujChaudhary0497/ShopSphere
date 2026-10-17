@@ -194,7 +194,17 @@ function Profile() {
 
                 <input
                   type="text"
-                  value={user.role === "admin" ? "Administrator" : "User"}
+                  value={
+                    user.role
+                      ? user.role
+                          .split("_")
+                          .map(
+                            (word) =>
+                              word.charAt(0).toUpperCase() + word.slice(1),
+                          )
+                          .join(" ")
+                      : "Not Assigned"
+                  }
                   disabled
                 />
               </div>

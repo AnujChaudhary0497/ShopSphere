@@ -1,19 +1,21 @@
-const express = require("express");
+import { Navigate } from "react-router-dom";
 
-const {
-    getDashboardStats
-} = require("../controllers/dashboard.controller");
+const DashboardRoute = ({ children }) => {
+  const token = localStorage.getItem("token");
 
-const authMiddleware = require("../middlewares/auth.middleware");
-const adminOnly = require("../middlewares/role.middleware");
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
-const router = express.Router();
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
-router.get(
-    "/stats",
-    authMiddleware,
-    adminOnly,
-    getDashboardStats
-);
+  const role = user.role;
 
-module.exports = router;
+  if (!role) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+};
+
+export default DashboardRoute;

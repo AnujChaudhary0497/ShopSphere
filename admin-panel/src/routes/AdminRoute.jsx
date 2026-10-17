@@ -1,30 +1,29 @@
 import { Navigate, Outlet } from "react-router-dom";
 
 function AdminRoute() {
+    const token = localStorage.getItem("token");
     const storedUser = localStorage.getItem("user");
 
-    const user = storedUser
-        ? JSON.parse(storedUser)
-        : null;
-
-    if (!user) {
+    if (!token || !storedUser) {
         return <Navigate to="/login" replace />;
     }
 
-    if (user.role !== "admin") {
-        return (
-            <div
-                style={{
-                    padding: "40px",
-                    textAlign: "center"
-                }}
-            >
-                <h1>Access Denied</h1>
+    let user;
 
-                <p>
-                    You do not have permission to access
-                    the admin panel.
-                </p>
+    try {
+        user = JSON.parse(storedUser);
+    } catch (error) {
+        localStorage.removeItem("user");
+        localStorage.removeItem("token");
+
+        return <Navigate to="/login" replace />;
+    }
+
+    if (!user.role && !user.roleId) {
+        return (
+            <div style={{ padding: "40px", textAlign: "center" }}>
+                <h1>Role Not Assigned</h1>
+                <p>Your account does not have an assigned role.</p>
             </div>
         );
     }

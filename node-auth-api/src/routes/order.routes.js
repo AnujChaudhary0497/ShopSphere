@@ -9,54 +9,48 @@ const {
 } = require("../controllers/order.controller");
 
 const authMiddleware = require("../middlewares/auth.middleware");
-const adminOnly = require("../middlewares/role.middleware");
+const checkPermission = require("../middlewares/permission.middleware");
 
 const router = express.Router();
-
 
 // Get All Orders
 router.get(
     "/",
     authMiddleware,
-    adminOnly,
+    checkPermission("orders", "read"),
     getOrders
 );
-
 
 // Get Order By ID
 router.get(
     "/:id",
     authMiddleware,
-    adminOnly,
+    checkPermission("orders", "read"),
     getOrderById
 );
-
 
 // Create Order
 router.post(
     "/",
     authMiddleware,
-    adminOnly,
+    checkPermission("orders", "create"),
     createOrder
 );
-
 
 // Update Order
 router.put(
     "/:id",
     authMiddleware,
-    adminOnly,
+    checkPermission("orders", "update"),
     updateOrder
 );
-
 
 // Delete Order
 router.delete(
     "/:id",
     authMiddleware,
-    adminOnly,
+    checkPermission("orders", "delete"),
     deleteOrder
 );
-
 
 module.exports = router;

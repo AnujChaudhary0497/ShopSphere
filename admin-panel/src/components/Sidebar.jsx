@@ -6,41 +6,72 @@ import {
     UserCircle,
     LockKeyhole,
     LogOut,
-    X
+    X,
+    ShieldCheck,
 } from "lucide-react";
 
-import {
-    NavLink,
-    useNavigate
-} from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { hasPermission } from "../utils/permissions";
 
 function Sidebar({ isOpen, onClose }) {
-
     const navigate = useNavigate();
 
     const handleLogout = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
 
-        navigate("/login", {
-            replace: true
-        });
+        navigate("/login", { replace: true });
 
-        onClose();
+        onClose?.();
     };
 
+    const menuItems = [
+        {
+            label: "Dashboard",
+            path: "/dashboard",
+            resource: "dashboard",
+            action: "read",
+            icon: LayoutDashboard,
+        },
+        {
+            label: "Users",
+            path: "/users",
+            resource: "users",
+            action: "read",
+            icon: Users,
+        },
+        {
+            label: "Products",
+            path: "/products",
+            resource: "products",
+            action: "read",
+            icon: Package,
+        },
+        {
+            label: "Orders",
+            path: "/orders",
+            resource: "orders",
+            action: "read",
+            icon: ShoppingCart,
+        },
+        {
+            label: "Role Management",
+            path: "/roles",
+            resource: "roles",
+            action: "read",
+            icon: ShieldCheck,
+        },
+    ];
+
+    const visibleMenuItems = menuItems.filter((item) =>
+        hasPermission(item.resource, item.action)
+    );
+
     return (
-        <aside
-            className={`sidebar ${
-                isOpen ? "sidebar-open" : ""
-            }`}
-        >
-
+        <aside className={`sidebar ${isOpen ? "sidebar-open" : ""}`}>
+            {/* Logo */}
             <div className="sidebar-logo">
-
-                <div className="logo-icon">
-                    S
-                </div>
+                <div className="logo-icon">S</div>
 
                 <span>ShopSphere</span>
 
@@ -52,109 +83,62 @@ function Sidebar({ isOpen, onClose }) {
                 >
                     <X size={22} />
                 </button>
-
             </div>
 
+            {/* Navigation */}
             <nav className="sidebar-nav">
-
                 <div className="nav-section">
+                    <p className="nav-section-title">MAIN MENU</p>
 
-                    <p className="nav-section-title">
-                        MAIN MENU
-                    </p>
+                    {visibleMenuItems.map((item) => {
+                        const Icon = item.icon;
 
-                    <NavLink
-                        to="/dashboard"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
-                        }
-                    >
-                        <LayoutDashboard size={20} />
-                        <span>Dashboard</span>
-                    </NavLink>
-
-                    <NavLink
-                        to="/users"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
-                        }
-                    >
-                        <Users size={20} />
-                        <span>Users</span>
-                    </NavLink>
-
-                    <NavLink
-                        to="/products"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
-                        }
-                    >
-                        <Package size={20} />
-                        <span>Products</span>
-                    </NavLink>
-
-                    <NavLink
-                        to="/orders"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
-                        }
-                    >
-                        <ShoppingCart size={20} />
-                        <span>Orders</span>
-                    </NavLink>
-
+                        return (
+                            <NavLink
+                                key={item.path}
+                                to={item.path}
+                                onClick={onClose}
+                                className={({ isActive }) =>
+                                    `nav-item ${isActive ? "active" : ""}`
+                                }
+                            >
+                                <Icon size={20} />
+                                <span>{item.label}</span>
+                            </NavLink>
+                        );
+                    })}
                 </div>
 
+                {/* Account */}
                 <div className="nav-section">
-
-                    <p className="nav-section-title">
-                        ACCOUNT
-                    </p>
+                    <p className="nav-section-title">ACCOUNT</p>
 
                     <NavLink
                         to="/profile"
                         onClick={onClose}
                         className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
+                            `nav-item ${isActive ? "active" : ""}`
                         }
                     >
                         <UserCircle size={20} />
                         <span>Profile</span>
                     </NavLink>
-                    
+
                     <NavLink
                         to="/change-password"
                         onClick={onClose}
                         className={({ isActive }) =>
-                            `nav-item ${
-                                isActive ? "active" : ""
-                            }`
+                            `nav-item ${isActive ? "active" : ""}`
                         }
                     >
                         <LockKeyhole size={20} />
                         <span>Change Password</span>
                     </NavLink>
-
                 </div>
-
             </nav>
 
+            {/* Logout */}
             <div className="sidebar-bottom">
-
                 <button
                     type="button"
                     className="logout-button"
@@ -163,9 +147,7 @@ function Sidebar({ isOpen, onClose }) {
                     <LogOut size={20} />
                     <span>Logout</span>
                 </button>
-
             </div>
-
         </aside>
     );
 }

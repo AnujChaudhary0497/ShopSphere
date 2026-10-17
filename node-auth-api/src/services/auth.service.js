@@ -39,11 +39,28 @@ const getUsers = async () => {
     attributes: {
       exclude: ["password"],
     },
-
+    include: [
+      {
+        model: require("../models/role.model"),
+        as: "assignedRole",
+        attributes: ["id", "name"],
+        required: false,
+      },
+    ],
     order: [["created_at", "DESC"]],
   });
 
-  return users;
+  return users.map((user) => {
+    const userData = user.toJSON();
+
+    const { assignedRole, ...cleanUserData } = userData;
+
+    return {
+      ...cleanUserData,
+      role: assignedRole?.name || userData.role,
+      roleId: userData.roleId || null,
+    };
+  });
 };
 
 // =========================
@@ -55,13 +72,34 @@ const getUserById = async (userId) => {
     attributes: {
       exclude: ["password"],
     },
+    include: [
+      {
+        model: require("../models/role.model"),
+        as: "assignedRole",
+        attributes: ["id", "name"],
+        required: false,
+      },
+    ],
   });
 
   if (!user) {
     throw new Error("User not found");
   }
 
-  return user;
+  const userData = user.toJSON();
+
+  return {
+    id: userData.id,
+    name: userData.name,
+    email: userData.email,
+    role: userData.assignedRole?.name || userData.role,
+    roleId: userData.roleId || null,
+    isActive: userData.isActive,
+    resetPasswordToken: userData.resetPasswordToken,
+    resetPasswordExpires: userData.resetPasswordExpires,
+    created_at: userData.created_at,
+    updated_at: userData.updated_at,
+  };
 };
 
 // =========================
@@ -83,11 +121,46 @@ const loginUser = async ({ email, password }) => {
     throw new Error("Invalid email or password");
   }
 
+  if (!user.isActive) {
+    throw new Error("Your account is inactive. Please contact administrator.");
+  }
+
+  const { Role, Permission } = require("../models/associations");
+
+  let assignedRole = null;
+  let permissions = [];
+
+  if (user.roleId) {
+    assignedRole = await Role.findByPk(user.roleId, {
+      include: [
+        {
+          model: Permission,
+          as: "permissions",
+          attributes: ["name", "resource", "action"],
+          through: {
+            attributes: [],
+          },
+        },
+      ],
+    });
+
+    if (assignedRole) {
+      permissions = (assignedRole.permissions || []).map((permission) => ({
+        name: permission.name,
+        resource: permission.resource,
+        action: permission.action,
+      }));
+    }
+  }
+
+  const roleName = assignedRole ? assignedRole.name : user.role;
+
   const token = jwt.sign(
     {
       id: user.id,
       email: user.email,
-      role: user.role,
+      role: roleName,
+      roleId: user.roleId || null,
     },
     process.env.JWT_SECRET,
     {
@@ -96,11 +169,18 @@ const loginUser = async ({ email, password }) => {
   );
 
   return {
-    user,
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: roleName,
+      roleId: user.roleId || null,
+      permissions,
+      isActive: user.isActive,
+    },
     token,
   };
 };
-
 // =========================
 // Update Profile
 // =========================
@@ -163,36 +243,62 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
 // Update User By Admin
 // =========================
 
-const updateUserByAdmin = async (userId, { name, email, role, isActive }) => {
+const updateUserByAdmin = async (
+  userId,
+  { name, email, role, roleId, isActive },
+) => {
   const user = await User.findByPk(userId);
 
   if (!user) {
     throw new Error("User not found");
   }
 
-  // Check duplicate email
-
   if (email && email !== user.email) {
-    const existingUser = await User.findOne({
-      where: { email },
-    });
+    const existingUser = await User.findOne({ where: { email } });
 
     if (existingUser) {
       throw new Error("Email already registered");
     }
   }
 
+  let assignedRoleId = user.roleId;
+
+  if (roleId !== undefined) {
+    const Role = require("../models/role.model");
+    const assignedRole = await Role.findByPk(roleId);
+
+    if (!assignedRole) {
+      throw new Error("Role not found");
+    }
+
+    assignedRoleId = assignedRole.id;
+  } else if (role !== undefined) {
+    const Role = require("../models/role.model");
+    const assignedRole = await Role.findOne({
+      where: { name: role },
+    });
+
+    if (!assignedRole) {
+      throw new Error("Role not found");
+    }
+
+    assignedRoleId = assignedRole.id;
+  }
+
+  const Role = require("../models/role.model");
+
+  const finalRole = assignedRoleId ? await Role.findByPk(assignedRoleId) : null;
+
   await user.update({
     name: name ?? user.name,
     email: email ?? user.email,
-    role: role ?? user.role,
-
+    role: finalRole ? finalRole.name : (role ?? user.role),
+    roleId: assignedRoleId,
     isActive: isActive !== undefined ? isActive : user.isActive,
   });
 
   return user;
 };
-
 // =========================
 // Toggle User Status
 // =========================

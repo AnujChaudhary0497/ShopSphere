@@ -52,26 +52,27 @@ const login = async (req, res) => {
 
     res.status(200).json({
       success: true,
-
       message: "Login successful",
-
       data: {
         id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
+        roleId: user.roleId,
+        permissions: user.permissions || [],
+        isActive: user.isActive,
         token,
       },
     });
   } catch (error) {
+    console.error("Login error:", error);
+
     res.status(401).json({
       success: false,
-
       message: error.message,
     });
   }
 };
-
 // =========================
 // Get All Users
 // =========================
@@ -182,23 +183,27 @@ const updateUser = async (req, res) => {
 
     const user = await updateUserByAdmin(userId, req.body);
 
+    const Role = require("../models/role.model");
+
+    const assignedRole = user.roleId
+      ? await Role.findByPk(user.roleId)
+      : null;
+
     res.status(200).json({
       success: true,
-
       message: "User updated successfully",
-
       data: {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        role: assignedRole?.name || user.role,
+        roleId: user.roleId || null,
         isActive: user.isActive,
       },
     });
   } catch (error) {
     res.status(400).json({
       success: false,
-
       message: error.message,
     });
   }

@@ -6,6 +6,7 @@ import {
   updateProduct,
   deleteProduct,
 } from "../services/product.api";
+import { hasPermission } from "../utils/permissions";
 
 const initialFormData = {
   name: "",
@@ -22,6 +23,9 @@ const initialFormData = {
 };
 
 function Products() {
+  const canCreateProducts = hasPermission("products", "create");
+  const canUpdateProducts = hasPermission("products", "update");
+  const canDeleteProducts = hasPermission("products", "delete");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -141,6 +145,16 @@ function Products() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (editingProduct && !canUpdateProducts) {
+      setFormError("You do not have permission to update products.");
+      return;
+    }
+
+    if (!editingProduct && !canCreateProducts) {
+      setFormError("You do not have permission to create products.");
+      return;
+    }
+
     try {
       setSubmitting(true);
       setFormError("");
@@ -217,6 +231,11 @@ function Products() {
   // =========================
 
   const handleDeleteProduct = async (productId) => {
+    if (!canDeleteProducts) {
+      alert("You do not have permission to delete products.");
+      return;
+    }
+
     const confirmDelete = window.confirm(
       "Are you sure you want to delete this product?"
     );
@@ -263,12 +282,14 @@ function Products() {
         <div className="card-header">
           <h3>All Products</h3>
 
-          <button
-            className="add-product-button"
-            onClick={openAddModal}
-          >
-            Add Product
-          </button>
+          {canCreateProducts && (
+            <button
+              className="add-product-button"
+              onClick={openAddModal}
+            >
+              Add Product
+            </button>
+          )}
         </div>
 
         {/* =========================
@@ -321,7 +342,7 @@ function Products() {
                     <th>Price</th>
                     <th>Stock</th>
                     <th>Rating</th>
-                    <th>Action</th>
+                    {(canUpdateProducts || canDeleteProducts) && <th>Action</th>}
                   </tr>
                 </thead>
 
@@ -377,38 +398,32 @@ function Products() {
                         ⭐ {product.rating}
                       </td>
 
-                      {/* ACTION */}
+                      {/* ACTIONS: show only permitted actions */}
 
-                      <td>
-                        <div className="product-actions">
+                      {(canUpdateProducts || canDeleteProducts) && (
+                        <td>
+                          <div className="product-actions">
+                            {canUpdateProducts && (
+                              <button
+                                className="edit-product-button"
+                                onClick={() => openEditModal(product)}
+                              >
+                                Edit
+                              </button>
+                            )}
 
-                          <button
-                            className="edit-product-button"
-                            onClick={() =>
-                              openEditModal(product)
-                            }
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            className="delete-product-button"
-                            onClick={() =>
-                              handleDeleteProduct(
-                                product.id
-                              )
-                            }
-                            disabled={
-                              deletingId === product.id
-                            }
-                          >
-                            {deletingId === product.id
-                              ? "Deleting..."
-                              : "Delete"}
-                          </button>
-
-                        </div>
-                      </td>
+                            {canDeleteProducts && (
+                              <button
+                                className="delete-product-button"
+                                onClick={() => handleDeleteProduct(product.id)}
+                                disabled={deletingId === product.id}
+                              >
+                                {deletingId === product.id ? "Deleting..." : "Delete"}
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
 
                     </tr>
                   ))}
@@ -423,6 +438,7 @@ function Products() {
             ========================= */}
 
       {showModal && (
+        (editingProduct ? canUpdateProducts : canCreateProducts) ? (
         <div
           className="modal-overlay"
           onClick={closeModal}
@@ -676,6 +692,7 @@ function Products() {
             </form>
           </div>
         </div>
+        ) : null
       )}
     </div>
   );
