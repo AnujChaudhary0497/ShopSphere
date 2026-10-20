@@ -3,6 +3,8 @@ const express = require("express");
 const {
     getAllRoles,
     createRole,
+    updateRole,
+    deleteRole,
     assignPermissions,
     assignRoleToUser,
 } = require("../controllers/role.controller");
@@ -26,6 +28,22 @@ router.post(
     authMiddleware,
     checkPermission("roles", "create"),
     createRole
+);
+
+// Update role
+router.put(
+    "/:id",
+    authMiddleware,
+    checkPermission("roles", "update"),
+    updateRole
+);
+
+// Delete role
+router.delete(
+    "/:id",
+    authMiddleware,
+    checkPermission("roles", "delete"),
+    deleteRole
 );
 
 // Assign permissions to a role

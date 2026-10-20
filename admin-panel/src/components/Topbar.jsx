@@ -357,10 +357,14 @@ function Topbar({ onMenuClick }) {
               <span className="admin-name">{user?.name || "Admin"}</span>
 
               <span className="admin-role">
-                {user?.role === "admin" ? "Administrator" : "User"}
+                {user?.role
+                  ? user.role
+                      .replace(/_/g, " ")
+                      .replace(/\b\w/g, (letter) => letter.toUpperCase())
+                 : "User"}
               </span>
             </div>
-
+            
             <ChevronDown
               size={18}
               className={profileOpen ? "profile-chevron-open" : ""}

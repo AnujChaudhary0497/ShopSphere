@@ -271,6 +271,9 @@ a {
   padding: 22px 14px;
   overflow-y: auto;
 }
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
 
 .nav-section {
   margin-bottom: 28px;
@@ -2257,4 +2260,154 @@ a {
     width: 185px;
     right: 0;
   }
+}
+/* Role & Permission Dropdown */
+
+.role-permission-menu {
+    width: 100%;
+}
+
+.role-permission-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: none;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+}
+
+.role-permission-toggle > span {
+    flex: 1;
+}
+
+.role-menu-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.role-permission-submenu {
+    padding-left: 18px;
+    margin-top: 4px;
+}
+
+.submenu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+}
+
+.role-permission-toggle.active,
+.submenu-item.active {
+    color: #fff;
+}
+/* Role & Permission - Normal Sidebar Style */
+
+.role-permission-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 10px;
+    background: transparent !important;
+    color: #6b7280 !important;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    box-shadow: none !important;
+}
+
+.role-permission-toggle:hover {
+    background: #f9fafb !important;
+    color: #4b5563 !important;
+}
+
+.role-permission-toggle.active {
+    background: #eef5ff !important;
+    color: #2563eb !important;
+}
+
+.role-permission-toggle > span {
+    flex: 1;
+}
+
+.role-menu-arrow {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.role-permission-submenu {
+    padding-left: 18px;
+    margin-top: 4px;
+}
+
+.role-permission-submenu .submenu-item {
+    color: #6b7280;
+    background: transparent;
+}
+
+.role-permission-submenu .submenu-item:hover {
+    background: #f9fafb;
+}
+
+.role-permission-submenu .submenu-item.active {
+    background: #eef5ff;
+    color: #2563eb;
+}
+/* Role & Permission - Match Other Sidebar Items */
+
+.role-permission-toggle {
+    background: transparent !important;
+    color: #6b7280 !important;
+    border-radius: 8px !important;
+    padding: 12px 16px !important;
+    min-height: 48px;
+    white-space: nowrap;
+}
+
+.role-permission-toggle.active {
+    background: transparent !important;
+    color: #6b7280 !important;
+}
+
+.role-permission-toggle:hover {
+    background: #f9fafb !important;
+    color: #4b5563 !important;
+}
+
+.role-permission-toggle > span {
+    flex: 1;
+    white-space: nowrap;
+    font-size: 16px;
+}
+
+.role-menu-arrow {
+    flex-shrink: 0;
+    margin-left: auto;
+}
+
+.role-permission-submenu {
+    padding-left: 18px;
+    margin-top: 4px;
+}
+
+.role-permission-submenu .submenu-item {
+    background: transparent !important;
+    color: #6b7280 !important;
+    border-radius: 8px;
+}
+
+.role-permission-submenu .submenu-item:hover {
+    background: #f9fafb !important;
+}
+
+.role-permission-submenu .submenu-item.active {
+    background: #eef5ff !important;
+    color: #2563eb !important;
 }

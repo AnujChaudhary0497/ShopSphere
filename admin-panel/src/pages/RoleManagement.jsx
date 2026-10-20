@@ -7,9 +7,18 @@ import {
   AlertCircle,
   CheckCircle,
   LoaderCircle,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
-import { getRoles, createRole } from "../services/role.api";
+import {
+  getRoles,
+  createRole,
+  updateRole,
+  deleteRole,
+  getPermissions,
+  assignPermissions,
+} from "../services/role.api";
 import { hasPermission } from "../utils/permissions";
 
 function formatName(value = "") {
@@ -24,14 +33,43 @@ function RoleManagement() {
   const [submitting, setSubmitting] = useState(false);
 
   const [showForm, setShowForm] = useState(false);
+  const [editingRole, setEditingRole] = useState(null);
+  const [deletingRoleId, setDeletingRoleId] = useState(null);
+
+  // Role permissions checkbox editor
+  const [permissionsRole, setPermissionsRole] = useState(null);
+  const [allPermissions, setAllPermissions] = useState([]);
+  const [selectedPermissionIds, setSelectedPermissionIds] = useState([]);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [permissionsSaving, setPermissionsSaving] = useState(false);
 
   const [roleName, setRoleName] = useState("");
   const [description, setDescription] = useState("");
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  useEffect(() => {
+    if (!success) return;
+
+    const timer = setTimeout(() => {
+      setSuccess("");
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [success]);
 
   const canCreateRole = hasPermission("roles", "create");
+  const canUpdateRole = hasPermission("roles", "update");
+  const canDeleteRole = hasPermission("roles", "delete");
+  const protectedRoles = [
+    "super_admin",
+    "admin",
+    "manager",
+    "editor",
+    "support",
+    "user",
+    "inventory_manager",
+  ];
 
   const loadRoles = useCallback(async () => {
     setLoading(true);
@@ -59,19 +97,38 @@ function RoleManagement() {
     loadRoles();
   }, [loadRoles]);
 
-  const handleCreateRole = async (event) => {
-    event.preventDefault();
+  const resetForm = () => {
+    setRoleName("");
+    setDescription("");
+    setEditingRole(null);
+    setShowForm(false);
+    setError("");
+  };
 
+ const handleStartEdit = (role) => {
+  setError("");
+  setSuccess("");
+  setEditingRole(role);
+  setRoleName(role.name || "");
+  setDescription(role.description || "");
+  setShowForm(true);
+
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
+  const handleSubmitRole = async (event) => {
+    event.preventDefault();
     setError("");
     setSuccess("");
 
     const normalizedName = roleName.trim().toLowerCase();
-
     if (!normalizedName) {
       setError("Please enter a role name.");
       return;
     }
-
     if (!/^[a-z][a-z0-9_]*$/.test(normalizedName)) {
       setError(
         "Use lowercase letters, numbers and underscores. The name must start with a letter.",
@@ -80,36 +137,156 @@ function RoleManagement() {
     }
 
     const duplicate = roles.some(
-      (role) => String(role.name).toLowerCase() === normalizedName,
+      (role) =>
+        String(role.name).toLowerCase() === normalizedName &&
+        role.id !== editingRole?.id,
     );
-
     if (duplicate) {
       setError("This role already exists.");
       return;
     }
 
     setSubmitting(true);
-
     try {
-      await createRole({
+      const payload = {
         name: normalizedName,
         description: description.trim(),
-      });
+      };
 
-      setSuccess("Role created successfully.");
+      if (editingRole) {
+        await updateRole(editingRole.id, payload);
+        setSuccess("Role updated successfully.");
+      } else {
+        await createRole(payload);
+        setSuccess("Role created successfully.");
+      }
 
       setRoleName("");
       setDescription("");
+      setEditingRole(null);
       setShowForm(false);
-
       await loadRoles();
     } catch (err) {
       setError(
         err.response?.data?.message ||
-          "Unable to create role. Please check the backend API.",
+          `Unable to ${editingRole ? "update" : "create"} role. Please try again.`,
       );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleManagePermissions = async (role) => {
+    setError("");
+    setSuccess("");
+    setPermissionsRole(role);
+    setPermissionsLoading(true);
+
+    // Scroll the permissions editor into view so the click is immediately visible.
+    window.setTimeout(() => {
+      const editor = document.getElementById("role-permission-editor");
+      if (editor) {
+        editor.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 50);
+
+    try {
+      const response = await getPermissions();
+      const permissionList = Array.isArray(response)
+        ? response
+        : (response?.permissions ??
+          response?.data?.permissions ??
+          response?.data ??
+          []);
+
+      const normalizedList = Array.isArray(permissionList)
+        ? permissionList
+        : [];
+      setAllPermissions(normalizedList);
+
+      const assigned = Array.isArray(role.permissions) ? role.permissions : [];
+      const assignedIds = assigned
+        .map((permission) => {
+          if (typeof permission === "number") return permission;
+          if (typeof permission === "string") {
+            const found = normalizedList.find(
+              (item) => item.name === permission,
+            );
+            return found?.id;
+          }
+          return permission?.id;
+        })
+        .filter((id) => id !== undefined && id !== null);
+
+      setSelectedPermissionIds(assignedIds);
+    } catch (err) {
+      setPermissionsRole(null);
+      setError(
+        err.response?.data?.message ||
+          "Unable to load permissions. Please try again.",
+      );
+    } finally {
+      setPermissionsLoading(false);
+    }
+  };
+
+  const togglePermission = (permissionId) => {
+    setSelectedPermissionIds((current) =>
+      current.includes(permissionId)
+        ? current.filter((id) => id !== permissionId)
+        : [...current, permissionId],
+    );
+  };
+
+  const handleSavePermissions = async () => {
+    if (!permissionsRole) return;
+
+    setError("");
+    setSuccess("");
+    setPermissionsSaving(true);
+
+    try {
+      await assignPermissions(permissionsRole.id, selectedPermissionIds);
+      setSuccess(
+        `Permissions updated for ${formatName(permissionsRole.name)}.`,
+      );
+      setPermissionsRole(null);
+      setSelectedPermissionIds([]);
+      await loadRoles();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to save permissions. Please try again.",
+      );
+    } finally {
+      setPermissionsSaving(false);
+    }
+  };
+
+  const handleDeleteRole = async (role) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to delete the role "${formatName(role.name)}"?`,
+      )
+    ) {
+      return;
+    }
+
+    setError("");
+    setSuccess("");
+    setDeletingRoleId(role.id);
+    try {
+      await deleteRole(role.id);
+      setSuccess("Role deleted successfully.");
+      if (editingRole?.id === role.id) resetForm();
+      await loadRoles();
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          "Unable to delete role. Check whether users are assigned to this role.",
+      );
+    } finally {
+      setDeletingRoleId(null);
     }
   };
 
@@ -338,7 +515,90 @@ function RoleManagement() {
                     white-space: nowrap;
                 }
 
-                .role-description {
+                .role-card-actions {
+                    display: flex;
+                    gap: 8px;
+                    flex-wrap: wrap;
+                    margin: 0 0 16px;
+                }
+
+                .role-action-button {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 6px;
+                    padding: 7px 10px;
+                    border: 1px solid #d1d5db;
+                    border-radius: 7px;
+                    background: #fff;
+                    color: #374151;
+                    font-size: 12px;
+                    font-weight: 600;
+                    cursor: pointer;
+                }
+
+                .role-action-button:hover { background: #f9fafb; }
+                .role-action-button:disabled { opacity: .6; cursor: not-allowed; }
+                .role-action-delete { color: #b91c1c; border-color: #fecaca; }
+                .role-action-delete:hover { background: #fef2f2; }
+
+                 .role-permission-editor {
+                     background: #fff;
+                     border: 1px solid #c7d2fe;
+                     border-radius: 12px;
+                     padding: 22px;
+                     margin-bottom: 24px;
+                     box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+                 }
+                 .role-permission-editor-header {
+                     display: flex;
+                     align-items: center;
+                     justify-content: space-between;
+                     gap: 12px;
+                     flex-wrap: wrap;
+                     margin-bottom: 16px;
+                 }
+                 .role-permission-editor-header h2 {
+                     margin: 0;
+                     font-size: 19px;
+                 }
+                 .role-permission-checkbox-grid {
+                     display: grid;
+                     grid-template-columns: repeat(3, minmax(0, 1fr));
+                     gap: 10px;
+                 }
+                 .role-permission-checkbox {
+                     display: flex;
+                     align-items: center;
+                     gap: 9px;
+                     padding: 11px 12px;
+                     border: 1px solid #e5e7eb;
+                     border-radius: 8px;
+                     background: #f9fafb;
+                     font-size: 13px;
+                     overflow-wrap: anywhere;
+                     cursor: pointer;
+                 }
+                 .role-permission-checkbox input {
+                     width: 16px;
+                     height: 16px;
+                     accent-color: #4f46e5;
+                     flex-shrink: 0;
+                     cursor: pointer;
+                 }
+                 .role-permission-editor-actions {
+                     display: flex;
+                     gap: 10px;
+                     flex-wrap: wrap;
+                     margin-top: 18px;
+                 }
+                 @media (max-width: 900px) {
+                     .role-permission-checkbox-grid {
+                         grid-template-columns: repeat(2, minmax(0, 1fr));
+                     }
+                 }
+
+                 .role-description {
                     color: #6b7280;
                     font-size: 14px;
                     line-height: 1.5;
@@ -383,7 +643,8 @@ function RoleManagement() {
                     border-radius: 12px;
                 }
 
-                .role-loading svg {
+                .role-loading svg,
+                .role-spinner {
                     animation: role-spin 1s linear infinite;
                 }
 
@@ -438,7 +699,14 @@ function RoleManagement() {
               onClick={() => {
                 setError("");
                 setSuccess("");
-                setShowForm((current) => !current);
+                if (showForm) {
+                  resetForm();
+                } else {
+                  setEditingRole(null);
+                  setRoleName("");
+                  setDescription("");
+                  setShowForm(true);
+                }
               }}
             >
               {showForm ? <X size={17} /> : <Plus size={17} />}
@@ -466,11 +734,11 @@ function RoleManagement() {
       )}
 
       {/* Create Role Form */}
-      {showForm && canCreateRole && (
+      {showForm && (editingRole ? canUpdateRole : canCreateRole) && (
         <div className="role-form-card">
-          <h2>Create New Role</h2>
+          <h2>{editingRole ? "Edit Role" : "Create New Role"}</h2>
 
-          <form onSubmit={handleCreateRole}>
+          <form onSubmit={handleSubmitRole}>
             <div className="role-form-grid">
               <div className="role-form-group">
                 <label htmlFor="roleName">Role Name *</label>
@@ -512,12 +780,16 @@ function RoleManagement() {
                 {submitting ? (
                   <>
                     <LoaderCircle size={17} className="role-spinner" />
-                    Creating...
+                    {editingRole ? "Saving..." : "Creating..."}
                   </>
                 ) : (
                   <>
-                    <Plus size={17} />
-                    Create Role
+                    {editingRole ? (
+                      <CheckCircle size={17} />
+                    ) : (
+                      <Plus size={17} />
+                    )}
+                    {editingRole ? "Save Changes" : "Create Role"}
                   </>
                 )}
               </button>
@@ -525,7 +797,7 @@ function RoleManagement() {
               <button
                 type="button"
                 className="role-button role-button-secondary"
-                onClick={() => setShowForm(false)}
+                onClick={resetForm}
                 disabled={submitting}
               >
                 Cancel
@@ -533,6 +805,94 @@ function RoleManagement() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Role Permissions Checkbox Editor */}
+      {permissionsRole && (
+        <section
+          id="role-permission-editor"
+          className="role-permission-editor"
+          style={{ scrollMarginTop: "24px" }}
+        >
+          <div className="role-permission-editor-header">
+            <h2>Manage Permissions: {formatName(permissionsRole.name)}</h2>
+            <span className="role-count">
+              {selectedPermissionIds.length} selected
+            </span>
+          </div>
+
+          {permissionsLoading ? (
+            <div className="role-loading">
+              <LoaderCircle size={24} />
+              <p>Loading permissions...</p>
+            </div>
+          ) : allPermissions.length === 0 ? (
+            <div className="role-empty">
+              <p>No permissions found. Check the permissions API response.</p>
+            </div>
+          ) : (
+            <div className="role-permission-checkbox-grid">
+              {allPermissions.map((permission) => {
+                const permissionId = permission.id;
+                const permissionName =
+                  permission.name ||
+                  [permission.resource, permission.action]
+                    .filter(Boolean)
+                    .join(".");
+
+                return (
+                  <label
+                    className="role-permission-checkbox"
+                    key={permissionId}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPermissionIds.includes(permissionId)}
+                      onChange={() => togglePermission(permissionId)}
+                      disabled={permissionsSaving}
+                    />
+                    <span>{permissionName}</span>
+                  </label>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="role-permission-editor-actions">
+            <button
+              type="button"
+              className="role-button role-button-primary"
+              onClick={handleSavePermissions}
+              disabled={permissionsLoading || permissionsSaving}
+            >
+              {permissionsSaving ? (
+                <>
+                  <LoaderCircle size={17} className="role-spinner" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={17} />
+                  Save Permissions
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="role-button role-button-secondary"
+              onClick={() => {
+                setPermissionsRole(null);
+                setSelectedPermissionIds([]);
+                setAllPermissions([]);
+                setError("");
+              }}
+              disabled={permissionsSaving}
+            >
+              Cancel
+            </button>
+          </div>
+        </section>
       )}
 
       {/* Roles List */}
@@ -566,6 +926,56 @@ function RoleManagement() {
                   <h3 className="role-card-name">{formatName(role.name)}</h3>
 
                   <span className="role-badge">ROLE #{role.id ?? "—"}</span>
+                </div>
+
+                <div className="role-card-actions">
+                  {canUpdateRole && (
+                    <button
+                      type="button"
+                      className="role-action-button"
+                      onClick={() => handleManagePermissions(role)}
+                      disabled={permissionsSaving}
+                    >
+                      <ShieldCheck size={14} /> Manage Permissions
+                    </button>
+                  )}
+                  {!protectedRoles.includes(
+                    String(role.name || "").toLowerCase(),
+                  ) &&
+                    (canUpdateRole || canDeleteRole) && (
+                      <>
+                        {canUpdateRole && (
+                          <button
+                            type="button"
+                            className="role-action-button"
+                            onClick={() => handleStartEdit(role)}
+                            disabled={submitting || deletingRoleId === role.id}
+                          >
+                            <Pencil size={14} /> Edit
+                          </button>
+                        )}
+                        {canDeleteRole && (
+                          <button
+                            type="button"
+                            className="role-action-button role-action-delete"
+                            onClick={() => handleDeleteRole(role)}
+                            disabled={deletingRoleId === role.id}
+                          >
+                            {deletingRoleId === role.id ? (
+                              <LoaderCircle
+                                size={14}
+                                className="role-spinner"
+                              />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                            {deletingRoleId === role.id
+                              ? "Deleting..."
+                              : "Delete"}
+                          </button>
+                        )}
+                      </>
+                    )}
                 </div>
 
                 <p className="role-description">

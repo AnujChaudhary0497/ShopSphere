@@ -1,155 +1,219 @@
 import {
-    LayoutDashboard,
-    Users,
-    Package,
-    ShoppingCart,
-    UserCircle,
-    LockKeyhole,
-    LogOut,
-    X,
-    ShieldCheck,
+  LayoutDashboard,
+  Users,
+  Package,
+  ShoppingCart,
+  UserCircle,
+  LockKeyhole,
+  LogOut,
+  X,
+  ShieldCheck,
+  KeyRound,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+
+import { useState, useEffect } from "react";
 import { hasPermission } from "../utils/permissions";
 
 function Sidebar({ isOpen, onClose }) {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
+  const [rolePermissionOpen, setRolePermissionOpen] = useState(
+    location.pathname.startsWith("/roles") ||
+      location.pathname.startsWith("/permissions"),
+  );
 
-        navigate("/login", { replace: true });
+  useEffect(() => {
+    if (
+      location.pathname.startsWith("/roles") ||
+      location.pathname.startsWith("/permissions")
+    ) {
+      setRolePermissionOpen(true);
+    }
+  }, [location.pathname]);
 
-        onClose?.();
-    };
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
 
-    const menuItems = [
-        {
-            label: "Dashboard",
-            path: "/dashboard",
-            resource: "dashboard",
-            action: "read",
-            icon: LayoutDashboard,
-        },
-        {
-            label: "Users",
-            path: "/users",
-            resource: "users",
-            action: "read",
-            icon: Users,
-        },
-        {
-            label: "Products",
-            path: "/products",
-            resource: "products",
-            action: "read",
-            icon: Package,
-        },
-        {
-            label: "Orders",
-            path: "/orders",
-            resource: "orders",
-            action: "read",
-            icon: ShoppingCart,
-        },
-        {
-            label: "Role Management",
-            path: "/roles",
-            resource: "roles",
-            action: "read",
-            icon: ShieldCheck,
-        },
-    ];
+    navigate("/login", { replace: true });
 
-    const visibleMenuItems = menuItems.filter((item) =>
-        hasPermission(item.resource, item.action)
-    );
+    onClose?.();
+  };
 
-    return (
-        <aside className={`sidebar ${isOpen ? "sidebar-open" : ""}`}>
-            {/* Logo */}
-            <div className="sidebar-logo">
-                <div className="logo-icon">S</div>
+  const menuItems = [
+    {
+      label: "Dashboard",
+      path: "/dashboard",
+      resource: "dashboard",
+      action: "read",
+      icon: LayoutDashboard,
+    },
+    {
+      label: "Users",
+      path: "/users",
+      resource: "users",
+      action: "read",
+      icon: Users,
+    },
+    {
+      label: "Products",
+      path: "/products",
+      resource: "products",
+      action: "read",
+      icon: Package,
+    },
+    {
+      label: "Orders",
+      path: "/orders",
+      resource: "orders",
+      action: "read",
+      icon: ShoppingCart,
+    },
+  ];
 
-                <span>ShopSphere</span>
+  const visibleMenuItems = menuItems.filter((item) =>
+    hasPermission(item.resource, item.action),
+  );
 
-                <button
-                    type="button"
-                    className="sidebar-close-button"
+  const rolePermissionActive =
+    location.pathname.startsWith("/roles") ||
+    location.pathname.startsWith("/permissions");
+
+  return (
+    <aside className={`sidebar ${isOpen ? "sidebar-open" : ""}`}>
+      {/* Logo */}
+      <div className="sidebar-logo">
+        <div className="logo-icon">S</div>
+
+        <span>ShopSphere</span>
+
+        <button
+          type="button"
+          className="sidebar-close-button"
+          onClick={onClose}
+          aria-label="Close menu"
+        >
+          <X size={22} />
+        </button>
+      </div>
+
+      {/* Navigation */}
+      <nav className="sidebar-nav">
+        {/* Main Menu */}
+        <div className="nav-section">
+          <p className="nav-section-title">MAIN MENU</p>
+
+          {visibleMenuItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={({ isActive }) =>
+                  `nav-item ${isActive ? "active" : ""}`
+                }
+              >
+                <Icon size={20} />
+                <span>{item.label}</span>
+              </NavLink>
+            );
+          })}
+        </div>
+
+        {/* Account */}
+        <div className="nav-section">
+          <p className="nav-section-title">ACCOUNT</p>
+
+          <NavLink
+            to="/profile"
+            onClick={onClose}
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
+            <UserCircle size={20} />
+            <span>Profile</span>
+          </NavLink>
+
+          <NavLink
+            to="/change-password"
+            onClick={onClose}
+            className={({ isActive }) =>
+              `nav-item ${isActive && !rolePermissionActive ? "active" : ""}`
+            }
+          >
+            <LockKeyhole size={20} />
+            <span>Change Password</span>
+          </NavLink>
+
+          {/* Role & Permission Dropdown */}
+          {hasPermission("roles", "read") && (
+            <div className="role-permission-menu">
+              <button
+                type="button"
+                className={`nav-item role-permission-toggle ${
+                  rolePermissionActive ? "active" : ""
+                }`}
+                onClick={() => setRolePermissionOpen((previous) => !previous)}
+                aria-expanded={rolePermissionOpen}
+              >
+                <ShieldCheck size={20} />
+
+                <span>Role & Permission</span>
+
+                {rolePermissionOpen ? (
+                  <ChevronDown size={16} className="role-menu-arrow" />
+                ) : (
+                  <ChevronRight size={16} className="role-menu-arrow" />
+                )}
+              </button>
+
+              {rolePermissionOpen && (
+                <div className="role-permission-submenu">
+                  <NavLink
+                    to="/roles"
                     onClick={onClose}
-                    aria-label="Close menu"
-                >
-                    <X size={22} />
-                </button>
-            </div>
+                    className={({ isActive }) =>
+                      `nav-item submenu-item ${isActive ? "active" : ""}`
+                    }
+                  >
+                    <ShieldCheck size={18} />
+                    <span>Roles</span>
+                  </NavLink>
 
-            {/* Navigation */}
-            <nav className="sidebar-nav">
-                <div className="nav-section">
-                    <p className="nav-section-title">MAIN MENU</p>
-
-                    {visibleMenuItems.map((item) => {
-                        const Icon = item.icon;
-
-                        return (
-                            <NavLink
-                                key={item.path}
-                                to={item.path}
-                                onClick={onClose}
-                                className={({ isActive }) =>
-                                    `nav-item ${isActive ? "active" : ""}`
-                                }
-                            >
-                                <Icon size={20} />
-                                <span>{item.label}</span>
-                            </NavLink>
-                        );
-                    })}
-                </div>
-
-                {/* Account */}
-                <div className="nav-section">
-                    <p className="nav-section-title">ACCOUNT</p>
-
+                  {hasPermission("permissions", "read") && (
                     <NavLink
-                        to="/profile"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${isActive ? "active" : ""}`
-                        }
+                      to="/permissions"
+                      onClick={onClose}
+                      className={({ isActive }) =>
+                        `nav-item submenu-item ${isActive ? "active" : ""}`
+                      }
                     >
-                        <UserCircle size={20} />
-                        <span>Profile</span>
+                      <KeyRound size={18} />
+                      <span>Permissions</span>
                     </NavLink>
-
-                    <NavLink
-                        to="/change-password"
-                        onClick={onClose}
-                        className={({ isActive }) =>
-                            `nav-item ${isActive ? "active" : ""}`
-                        }
-                    >
-                        <LockKeyhole size={20} />
-                        <span>Change Password</span>
-                    </NavLink>
+                  )}
                 </div>
-            </nav>
-
-            {/* Logout */}
-            <div className="sidebar-bottom">
-                <button
-                    type="button"
-                    className="logout-button"
-                    onClick={handleLogout}
-                >
-                    <LogOut size={20} />
-                    <span>Logout</span>
-                </button>
+              )}
             </div>
-        </aside>
-    );
+          )}
+        </div>
+      </nav>
+
+      {/* Logout */}
+      <div className="sidebar-bottom">
+        <button type="button" className="logout-button" onClick={handleLogout}>
+          <LogOut size={20} />
+          <span>Logout</span>
+        </button>
+      </div>
+    </aside>
+  );
 }
 
 export default Sidebar;

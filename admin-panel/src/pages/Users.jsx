@@ -10,10 +10,13 @@ import {
   deleteUser,
 } from "../services/user.api";
 
+import { getRoles } from "../services/role.api";
+
 import { hasPermission } from "../utils/permissions";
 
 function Users() {
   const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
 
   const [loading, setLoading] = useState(true);
 
@@ -63,10 +66,24 @@ function Users() {
     }
   };
 
+  const fetchRoles = async () => {
+    try {
+      const response = await getRoles();
+
+      const roleList = Array.isArray(response)
+        ? response
+        : (response?.roles ?? response?.data?.roles ?? response?.data ?? []);
+
+      setRoles(Array.isArray(roleList) ? roleList : []);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchRoles();
   }, []);
-
   // =========================
   // Close Action Menu Outside
   // =========================
@@ -548,9 +565,13 @@ function Users() {
                   value={formData.role}
                   onChange={handleFormChange}
                 >
-                  <option value="user">User</option>
-
-                  <option value="admin">Admin</option>
+                  {roles.map((role) => (
+                    <option key={role.id} value={role.name}>
+                      {role.name
+                        .replace(/_/g, " ")
+                        .replace(/\b\w/g, (letter) => letter.toUpperCase())}
+                    </option>
+                  ))}
                 </select>
               </div>
 
