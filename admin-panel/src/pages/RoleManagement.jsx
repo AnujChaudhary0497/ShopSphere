@@ -105,19 +105,19 @@ function RoleManagement() {
     setError("");
   };
 
- const handleStartEdit = (role) => {
-  setError("");
-  setSuccess("");
-  setEditingRole(role);
-  setRoleName(role.name || "");
-  setDescription(role.description || "");
-  setShowForm(true);
+  const handleStartEdit = (role) => {
+    setError("");
+    setSuccess("");
+    setEditingRole(role);
+    setRoleName(role.name || "");
+    setDescription(role.description || "");
+    setShowForm(true);
 
-  window.scrollTo({
-    top: 0,
-    behavior: "smooth",
-  });
-};
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
 
   const handleSubmitRole = async (event) => {
     event.preventDefault();
@@ -192,16 +192,31 @@ function RoleManagement() {
 
     try {
       const response = await getPermissions();
+
+      // Support both Axios responses and APIs that return response.data directly.
+      // The permissions controller returns { success, count, data: [...] }.
       const permissionList = Array.isArray(response)
         ? response
-        : (response?.permissions ??
-          response?.data?.permissions ??
-          response?.data ??
-          []);
+        : Array.isArray(response?.data?.data)
+          ? response.data.data
+          : Array.isArray(response?.data?.permissions)
+            ? response.data.permissions
+            : Array.isArray(response?.data)
+              ? response.data
+              : Array.isArray(response?.permissions)
+                ? response.permissions
+                : Array.isArray(response?.data?.data?.permissions)
+                  ? response.data.data.permissions
+                  : [];
 
-      const normalizedList = Array.isArray(permissionList)
-        ? permissionList
-        : [];
+      const normalizedList = permissionList.map((item) => ({
+        ...item,
+        id: item.id !== undefined && item.id !== null ? Number(item.id) : item.id,
+        resource: item.resource || String(item.name || "").split(".")[0],
+        action:
+          item.action ||
+          String(item.name || "").split(".").slice(1).join("."),
+      }));
       setAllPermissions(normalizedList);
 
       const assigned = Array.isArray(role.permissions) ? role.permissions : [];
@@ -218,7 +233,7 @@ function RoleManagement() {
         })
         .filter((id) => id !== undefined && id !== null);
 
-      setSelectedPermissionIds(assignedIds);
+      setSelectedPermissionIds(assignedIds.map((id) => String(id)));
     } catch (err) {
       setPermissionsRole(null);
       setError(
@@ -232,9 +247,63 @@ function RoleManagement() {
 
   const togglePermission = (permissionId) => {
     setSelectedPermissionIds((current) =>
-      current.includes(permissionId)
-        ? current.filter((id) => id !== permissionId)
-        : [...current, permissionId],
+      current.some((id) => String(id) === String(permissionId))
+        ? current.filter((id) => String(id) !== String(permissionId))
+        : [...current, String(permissionId)],
+    );
+  };
+
+  // Fixed list of application modules required by the role-permission UI.
+  // Only permissions that exist in the database can be assigned.
+  const moduleResources = [
+    "dashboard",
+    "users",
+    "products",
+    "orders",
+    "notifications",
+    "roles",
+    "permissions",
+  ];
+  const permissionActions = ["create", "read", "update", "delete"];
+
+  const permissionGroups = moduleResources.map((resource) => ({
+    resource,
+    permissions: permissionActions.map((action) => {
+      const permission = allPermissions.find((item) => {
+        const permissionName = String(item.name || "").trim().toLowerCase();
+        const itemResource = String(
+          item.resource || permissionName.split(".")[0] || "",
+        ).trim().toLowerCase();
+        const itemAction = String(
+          item.action ||
+            permissionName.split(".").slice(1).join(".") ||
+            "",
+        ).trim().toLowerCase();
+        return itemResource === resource && itemAction === action;
+      });
+      return { action, permission: permission || null };
+    }),
+  }));
+
+  const togglePermissionGroup = (groupPermissions, shouldSelect) => {
+    const ids = groupPermissions
+      .map((permission) => permission.id)
+      .filter((id) => id !== undefined && id !== null);
+    setSelectedPermissionIds((current) => {
+      const normalizedIds = ids.map(String);
+      if (shouldSelect) return [...new Set([...current, ...normalizedIds])];
+      return current.filter((id) => !normalizedIds.includes(String(id)));
+    });
+  };
+
+  const toggleAllPermissions = (shouldSelect) => {
+    setSelectedPermissionIds(
+      shouldSelect
+        ? allPermissions
+            .map((permission) => permission.id)
+            .filter((id) => id !== undefined && id !== null)
+            .map(String)
+        : [],
     );
   };
 
@@ -246,7 +315,10 @@ function RoleManagement() {
     setPermissionsSaving(true);
 
     try {
-      await assignPermissions(permissionsRole.id, selectedPermissionIds);
+      await assignPermissions(
+        permissionsRole.id,
+        selectedPermissionIds.map((id) => /^\d+$/.test(String(id)) ? Number(id) : id),
+      );
       setSuccess(
         `Permissions updated for ${formatName(permissionsRole.name)}.`,
       );
@@ -666,6 +738,35 @@ function RoleManagement() {
                         font-size: 22px;
                     }
                 }
+
+                .role-management-page { padding: 24px; color: #111827; }
+                .role-page-header { margin-bottom: 22px; }
+                .role-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+                .role-card { padding: 18px; border-radius: 10px; box-shadow: none; }
+                .role-card-name { font-size: 16px; }
+                .role-card-actions { margin-bottom: 12px; }
+                .role-action-button { min-height: 34px; }
+                .role-description { min-height: 40px; margin-bottom: 14px; font-size: 13px; }
+                .role-permission-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid #eef2f7; }
+                .role-permission-summary .role-permission-heading { margin: 0; }
+                .role-permission-summary strong { color: #1d4ed8; font-size: 13px; }
+                .role-permission-summary-hint { margin: 8px 0 0; color: #6b7280; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+                .permission-controls { margin-bottom: 14px; padding: 12px 14px; border: 1px solid #dbeafe; background: #f8fbff; border-radius: 9px; }
+                .permission-master-checkbox { display: flex; align-items: center; gap: 10px; cursor: pointer; color: #1f2937; font-size: 13px; }
+                .permission-master-checkbox input { width: 16px; height: 16px; accent-color: #2563eb; flex-shrink: 0; }
+                .permission-master-checkbox span { display: flex; flex-direction: column; gap: 3px; }
+                .permission-master-checkbox small { color: #6b7280; font-size: 12px; font-weight: 400; }
+                .permission-module-list { display: grid; gap: 12px; }
+                .permission-module { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+                .permission-module-header { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 15px; background: #f8fafc; border-bottom: 1px solid #e5e7eb; }
+                .permission-module-header h3 { margin: 0 0 4px; font-size: 14px; font-weight: 700; text-transform: capitalize; }
+                .permission-module-header span { color: #6b7280; font-size: 12px; }
+                .module-master-checkbox { white-space: nowrap; }
+                .role-permission-checkbox-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 12px; gap: 8px; }
+                .role-permission-checkbox { background: #fff; padding: 10px 11px; border-radius: 7px; }
+                .role-permission-checkbox:hover { border-color: #93c5fd; background: #f8fbff; }
+                @media (max-width: 1100px) { .role-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .role-permission-checkbox-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+                @media (max-width: 768px) { .role-management-page { padding: 16px; } .role-grid { grid-template-columns: 1fr; } .role-permission-checkbox-grid { grid-template-columns: 1fr; } .permission-module-header { align-items: flex-start; } }
             `}</style>
 
       {/* Page Header */}
@@ -826,36 +927,115 @@ function RoleManagement() {
               <LoaderCircle size={24} />
               <p>Loading permissions...</p>
             </div>
-          ) : allPermissions.length === 0 ? (
-            <div className="role-empty">
-              <p>No permissions found. Check the permissions API response.</p>
-            </div>
           ) : (
-            <div className="role-permission-checkbox-grid">
-              {allPermissions.map((permission) => {
-                const permissionId = permission.id;
-                const permissionName =
-                  permission.name ||
-                  [permission.resource, permission.action]
-                    .filter(Boolean)
-                    .join(".");
+            <>
+              {allPermissions.length === 0 && (
+                <div className="role-alert role-alert-error">
+                  <AlertCircle size={19} />
+                  <span>
+                    No permission records were returned by the API. Modules are
+                    listed below, but permissions must exist in the database
+                    before they can be assigned.
+                  </span>
+                </div>
+              )}
+              <div className="permission-controls">
+                <label className="permission-master-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={
+                      allPermissions.length > 0 &&
+                      selectedPermissionIds.length === allPermissions.length
+                    }
+                    onChange={(event) =>
+                      toggleAllPermissions(event.target.checked)
+                    }
+                    disabled={permissionsSaving}
+                  />
+                  <span>
+                    <strong>Select all permissions</strong>
+                    <small>
+                      Select or clear every permission across all modules.
+                    </small>
+                  </span>
+                </label>
+              </div>
+              <div className="permission-module-list">
+                {permissionGroups.map(({ resource, permissions }) => {
+                  const availablePermissions = permissions
+                    .map((item) => item.permission)
+                    .filter(Boolean);
+                  const availableIds = availablePermissions
+                    .map((permission) => permission.id)
+                    .filter((id) => id !== undefined && id !== null);
+                  const selectedCount = availableIds.filter((id) =>
+                    selectedPermissionIds.includes(String(id)),
+                  ).length;
+                  const allAvailableSelected =
+                    availableIds.length > 0 &&
+                    selectedCount === availableIds.length;
 
-                return (
-                  <label
-                    className="role-permission-checkbox"
-                    key={permissionId}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedPermissionIds.includes(permissionId)}
-                      onChange={() => togglePermission(permissionId)}
-                      disabled={permissionsSaving}
-                    />
-                    <span>{permissionName}</span>
-                  </label>
-                );
-              })}
-            </div>
+                  return (
+                    <section className="permission-module" key={resource}>
+                      <div className="permission-module-header">
+                        <div>
+                          <h3>{formatName(resource)}</h3>
+                          <span>
+                            {selectedCount} of {availableIds.length} available
+                            permissions selected
+                          </span>
+                        </div>
+                        <label className="permission-master-checkbox module-master-checkbox">
+                          <input
+                            type="checkbox"
+                            checked={allAvailableSelected}
+                            onChange={(event) =>
+                              togglePermissionGroup(
+                                availablePermissions,
+                                event.target.checked,
+                              )
+                            }
+                            disabled={
+                              permissionsSaving || availableIds.length === 0
+                            }
+                          />
+                          <span>Select all</span>
+                        </label>
+                      </div>
+                      <div className="role-permission-checkbox-grid">
+                        {permissions.map(({ action, permission }) => (
+                          <label
+                            className="role-permission-checkbox"
+                            key={`${resource}.${action}`}
+                            title={
+                              !permission
+                                ? "This permission is missing from the database"
+                                : `${resource}.${action}`
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(
+                                permission &&
+                                selectedPermissionIds.includes(String(permission.id)),
+                              )}
+                              onChange={() =>
+                                permission && togglePermission(permission.id)
+                              }
+                              disabled={permissionsSaving || !permission}
+                            />
+                            <span>
+                              {formatName(action)}
+                              {!permission ? " (not configured)" : ""}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            </>
           )}
 
           <div className="role-permission-editor-actions">
@@ -982,36 +1162,29 @@ function RoleManagement() {
                   {role.description || "No description provided."}
                 </p>
 
-                <p className="role-permission-heading">
-                  Assigned Permissions ({permissions.length})
-                </p>
-
-                {permissions.length > 0 ? (
-                  <div className="role-permissions">
-                    {permissions.map((permission, index) => {
-                      const permissionName =
-                        typeof permission === "string"
-                          ? permission
-                          : permission.name ||
-                            [permission.resource, permission.action]
-                              .filter(Boolean)
-                              .join(".");
-
-                      return (
-                        <span
-                          className="role-permission-chip"
-                          key={permission.id ?? permissionName ?? index}
-                        >
-                          {permissionName}
-                        </span>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <span className="role-no-permissions">
-                    No permissions assigned.
+                <div className="role-permission-summary">
+                  <span className="role-permission-heading">
+                    Assigned permissions
                   </span>
-                )}
+                  <strong>{permissions.length}</strong>
+                </div>
+                <p className="role-permission-summary-hint">
+                  {permissions.length > 0
+                    ? `${permissions
+                        .slice(0, 3)
+                        .map((permission) =>
+                          typeof permission === "string"
+                            ? permission
+                            : permission.name ||
+                              [permission.resource, permission.action]
+                                .filter(Boolean)
+                                .join("."),
+                        )
+                        .join(
+                          ", ",
+                        )}${permissions.length > 3 ? ` +${permissions.length - 3} more` : ""}`
+                    : "No permissions assigned yet."}
+                </p>
               </div>
             );
           })}
